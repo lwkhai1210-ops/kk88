@@ -1,0 +1,213 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEON TÀI XỈU</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;background:radial-gradient(ellipse at top,#123d32,#050a0b 70%);
+ color:#fff;font-family:Arial,sans-serif;min-height:100vh
+}
+header{text-align:center;padding:24px 10px}
+h1{margin:0;color:#62ffb0;letter-spacing:4px;text-shadow:0 0 20px #00ff9955}
+header p{color:#a8c7b9;font-size:12px;letter-spacing:2px}
+.container{max-width:680px;margin:auto;padding:12px}
+.panel{
+ background:#0d1717;border:1px solid #275e4b;border-radius:18px;
+ padding:20px;margin-bottom:15px;box-shadow:0 0 28px #00ff9910
+}
+.label{text-align:center;color:#9cbdb0;font-size:12px;letter-spacing:2px}
+.balance{text-align:center;color:#62ffb0;font-size:30px;font-weight:bold;margin:12px}
+.dice-area{
+ display:flex;justify-content:center;gap:16px;padding:30px 0;
+ perspective:600px
+}
+.die{
+ width:76px;height:76px;background:linear-gradient(145deg,#fff,#dce8df);
+ color:#13271e;border-radius:15px;display:grid;place-items:center;
+ font-size:48px;box-shadow:0 6px 0 #779588,0 0 25px #6bffb455;
+ transition:transform .3s
+}
+.rolling .die{animation:shake .16s infinite alternate}
+@keyframes shake{
+ from{transform:rotate(-12deg) translateY(-5px)}
+ to{transform:rotate(12deg) translateY(5px)}
+}
+.result{text-align:center;font-size:24px;font-weight:bold;color:#62ffb0;min-height:32px}
+.sub{text-align:center;color:#8ba99b;font-size:12px;margin-top:8px}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.choice{
+ border:1px solid #3b745b;border-radius:13px;padding:18px 8px;
+ background:#13241f;color:white;cursor:pointer;font-weight:bold;font-size:20px
+}
+.choice small{display:block;font-size:11px;margin-top:8px;color:#a6c3b5}
+.choice.active{border:2px solid #64ffac;background:#174b37;box-shadow:0 0 18px #00ff9930}
+input{
+ width:100%;padding:13px;border-radius:9px;border:1px solid #35594b;
+ background:#08110e;color:white;font-size:17px;margin-top:10px
+}
+button{
+ border:0;border-radius:10px;background:#4bff9b;color:#062417;
+ padding:15px;font-weight:bold;font-size:15px;cursor:pointer
+}
+button:disabled{opacity:.45;cursor:not-allowed}
+.play{width:100%;margin-top:14px}
+.secondary{background:#23352d;color:#fff}
+.history{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+.pill{padding:8px 11px;border-radius:8px;background:#18241f;font-size:12px}
+.tai{color:#ffca65}.xiu{color:#65c7ff}
+.note{color:#9cb1a7;font-size:12px;line-height:1.6;text-align:center}
+</style>
+</head>
+<body>
+<header>
+ <h1>NEON TÀI XỈU</h1>
+ <p>THREE DICE · DEMO GAME</p>
+</header>
+
+<main class="container">
+ <section class="panel">
+  <div class="label">SỐ DƯ ĐIỂM ẢO</div>
+  <div class="balance" id="balance">10.000</div>
+  <div class="sub">Điểm dùng để chơi thử, không có giá trị tiền thật</div>
+ </section>
+
+ <section class="panel">
+  <div class="label">KẾT QUẢ XÚC XẮC</div>
+  <div class="dice-area" id="diceArea">
+   <div class="die" id="d1">⚀</div>
+   <div class="die" id="d2">⚁</div>
+   <div class="die" id="d3">⚂</div>
+  </div>
+  <div class="result" id="result">SẴN SÀNG</div>
+  <div class="sub" id="sum">Tổng: --</div>
+ </section>
+
+ <section class="panel">
+  <div class="label">CHỌN CỬA DỰ ĐOÁN</div>
+  <div class="choices" style="margin-top:16px">
+   <button class="choice" id="tai" onclick="choose('Tài')">
+    🔥 TÀI <small>11–17 điểm</small>
+   </button>
+   <button class="choice" id="xiu" onclick="choose('Xỉu')">
+    ❄️ XỈU <small>4–10 điểm</small>
+   </button>
+  </div>
+
+  <label for="stake" style="display:block;margin-top:20px;color:#b7d1c5;font-size:13px">
+   SỐ ĐIỂM ĐẶT CƯỢC ẢO
+  </label>
+  <input id="stake" type="number" min="10" max="10000"
+   step="10" value="100">
+
+  <button class="play" id="play" onclick="roll()">🎲 LẮC XÚC XẮC</button>
+  <button class="play secondary" onclick="resetGame()">↻ CHƠI LẠI</button>
+  <div class="sub" id="message">Chọn Tài hoặc Xỉu để bắt đầu.</div>
+ </section>
+
+ <section class="panel">
+  <div class="label">LỊCH SỬ KẾT QUẢ</div>
+  <div class="history" id="history">
+   <span class="sub">Chưa có kết quả</span>
+  </div>
+ </section>
+ <p class="note">Phiên bản mô phỏng ngoại tuyến · Không nạp tiền, không rút tiền.
+ Kết quả được tạo ngẫu nhiên bằng JavaScript.</p>
+</main>
+
+<script>
+let balance=10000;
+let selected='';
+let busy=false;
+let history=[];
+
+const faces=['','⚀','⚁','⚂','⚃','⚄','⚅'];
+const $=id=>document.getElementById(id);
+
+function format(n){return n.toLocaleString('vi-VN')}
+function updateBalance(){$('balance').textContent=format(balance)}
+
+function choose(side){
+ if(busy)return;
+ selected=side;
+ $('tai').classList.toggle('active',side==='Tài');
+ $('xiu').classList.toggle('active',side==='Xỉu');
+ $('message').textContent='Bạn đã chọn '+side+'.';
+}
+
+function roll(){
+ if(busy)return;
+ if(!selected){$('message').textContent='Hãy chọn Tài hoặc Xỉu!';return}
+ let stake=Number($('stake').value);
+ if(!Number.isInteger(stake)||stake<10||stake>balance){
+  $('message').textContent='Nhập số điểm từ 10 đến số dư hiện tại.';
+  return;
+ }
+ busy=true;
+ $('play').disabled=true;
+ balance-=stake;
+ updateBalance();
+ $('result').textContent='ĐANG LẮC...';
+ $('sum').textContent='Vui lòng chờ';
+ $('diceArea').classList.add('rolling');
+ let count=0;
+ let timer=setInterval(()=>{
+  for(let i=1;i<=3;i++)$('d'+i).textContent=faces[1+Math.floor(Math.random()*6)];
+  count++;
+  if(count>=12){
+   clearInterval(timer);
+   finish(stake);
+  }
+ },100);
+}
+
+function finish(stake){
+ let dice=[1,2,3].map(()=>1+Math.floor(Math.random()*6));
+ dice.forEach((v,i)=>$('d'+(i+1)).textContent=faces[v]);
+ $('diceArea').classList.remove('rolling');
+ let sum=dice.reduce((a,b)=>a+b,0);
+ let side=sum>=11&&sum<=17?'Tài':'Xỉu';
+ let win=side===selected;
+ // Trả thưởng mô phỏng 1:1, không phải tiền thật.
+ if(win)balance+=stake*2;
+ updateBalance();
+ $('result').textContent=side.toUpperCase()+(win?' · THẮNG!':' · THUA!');
+ $('result').style.color=win?'#62ffb0':'#ff8585';
+ $('sum').textContent='Tổng: '+sum+' ('+dice.join(' + ')+')';
+ $('message').textContent=win?
+ 'Bạn nhận lại điểm đã cược và thêm '+format(stake)+' điểm thưởng.':
+ 'Bạn đã mất '+format(stake)+' điểm trong lượt chơi này.';
+ history.unshift({side,sum,win});
+ history=history.slice(0,12);
+ renderHistory();
+ busy=false;
+ $('play').disabled=false;
+ if(balance<10)$('message').textContent+=' Hết điểm chơi, nhấn Chơi lại.';
+}
+
+function renderHistory(){
+ $('history').innerHTML=history.map(h=>
+ `<span class="pill ${h.side==='Tài'?'tai':'xiu'}">
+ ${h.side} ${h.sum} ${h.win?'✓':'×'}
+ </span>`).join('');
+}
+
+function resetGame(){
+ if(busy)return;
+ balance=10000;history=[];selected='';
+ $('tai').classList.remove('active');
+ $('xiu').classList.remove('active');
+ $('result').textContent='SẴN SÀNG';
+ $('result').style.color='#62ffb0';
+ $('sum').textContent='Tổng: --';
+ $('message').textContent='Chọn Tài hoặc Xỉu để bắt đầu.';
+ $('history').innerHTML='<span class="sub">Chưa có kết quả</span>';
+ $('d1').textContent='⚀';$('d2').textContent='⚁';$('d3').textContent='⚂';
+ updateBalance();
+}
+</script>
+</body>
+</html>
